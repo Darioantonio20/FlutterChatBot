@@ -35,26 +35,34 @@ final String title;
 _MyHomePageState createState() => _MyHomePageState();
 }
 class _MyHomePageState extends State<MyHomePage> {
-  void response(query) async {
+void response(query) async {
   final String jsonString = await rootBundle.loadString('assets/service.json');
   json.decode(jsonString);
-
   // Crear la autenticación de Dialogflow con el contenido del JSON
   AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/service.json').build();
   DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.english);
-
-  // Detectar la intención
-  AIResponse aiResponse = await dialogflow.detectIntent(query);
-
-  setState(() {
-    messsages.insert(0, {
-      "data": 0,
-      "message": aiResponse.getListMessage()?[0]["text"]["text"][0].toString()
-    });
-  });
-
-  print(aiResponse.getListMessage()?[0]["text"]["text"][0].toString());
-}
+   try {
+      AIResponse aiResponse = await dialogflow.detectIntent(query);
+      if (aiResponse != null && aiResponse.getListMessage() != null) {
+        var message = aiResponse.getListMessage();
+        if (message != null && message.isNotEmpty) {
+          setState(() {
+            messsages.insert(0, {
+              "data": 0,
+              "message": message[0]["text"]["text"][0].toString()
+            });
+          });
+          print(message[0]["text"]["text"][0].toString());
+        } else {
+          print("No se detectó ninguna intención o la respuesta no contiene mensajes.");
+        }
+      } else {
+        print("La respuesta de AIResponse es nula o no contiene mensajes.");
+      }
+    } catch (e) {
+      print("Error al detectar la intención: $e");
+    }
+  }
 
 
 
