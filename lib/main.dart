@@ -1,292 +1,153 @@
-import 'package:bubble/bubble.dart';
-import 'package:dialogflow_flutter/dialogflowFlutter.dart';
-import 'package:dialogflow_flutter/googleAuth.dart';
-import 'package:dialogflow_flutter/language.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
-import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/widgets.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:ffi';
 
-void detectIntent(String query) async {
-  try {
-    AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/dialog_flow_auth.json').build();
-    DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.spanish);
-    AIResponse response = await dialogflow.detectIntent(query);
-
-    if (response.getListMessage() != null) {
-      List? messages = response.getListMessage();
-      for (var message in messages!) {
-        if (message != null && message['text'] != null && message['text']['text'] != null) {
-          print(message['text']['text'][0]);
-        } else {
-          print("Mensaje no válido recibido.");
-        }
-      }
-    } else {
-      print("No se recibió una respuesta válida del bot.");
-    }
-  } catch (e) {
-    print("Error al detectar la intención: $e");
-  }
-}
-
-Future<void> readServiceJson() async {
-  final file = File('assets/dialog_flow_auth.json');
-  final contents = await file.readAsString();
-  final jsonData = jsonDecode(contents);
-
-  print(jsonData);
-}
-void main() {
+	const String apiKey = "AIzaSyCIpuvmSma2EO4Rk0xaivrJhbjhXD-_DXE";
+	
+void main(){
   runApp(MyApp());
 }
+
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
       debugShowCheckedModeBanner: false,
-      home: MyHomePage(title: 'Flutter Demo Home Page', key: UniqueKey(),),
+      home: ChatScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-MyHomePage({required Key key, required this.title}) : super(key: key);
-final String title;
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({Key? key}) : super(key: key);
 
-@override
-_MyHomePageState createState() => _MyHomePageState();
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
 }
-class _MyHomePageState extends State<MyHomePage> {
-void response(query) async {
-  try {
-    AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/dialog_flow_auth.json').build();
-    DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.english);
-    
-    // Detectar la intención a partir de la consulta
-    AIResponse aiResponse = await dialogflow.detectIntent(query);
-    
-    // Imprimir toda la respuesta para ver su estructura
-    print("Respuesta completa de AIResponse: ${aiResponse.getMessage()}");
-    
-    if (aiResponse.getListMessage() != null) {
-      var message = aiResponse.getListMessage();
-      
-      // Imprimir el mensaje para ver su estructura
-      print("Mensaje recibido: $message");
-      if (message != null && message.isNotEmpty) {
-        // Verificar que el primer mensaje tenga la clave 'text' y sea del tipo correcto
-        if (message[0] is Map && message[0].containsKey("text") && message[0]["text"] is Map) {
-          var textMap = message[0]["text"];
-          
-          if (textMap["text"] != null && textMap["text"] is List && textMap["text"].isNotEmpty) {
-            var text = textMap["text"];
-            setState(() {
-              messsages.insert(0, {"data": 0, "message": text[0].toString()});
-            });
-            print("Texto del bot: ${text[0].toString()}");
-          } else {
-            print("El campo 'text' está vacío o no es una lista.");
-          }
-        } else {
-          print("El mensaje no contiene un mapa 'text' válido.");
-        }
-      } else {
-        print("No se detectó ninguna intención o la respuesta no contiene mensajes.");
-      }
-    } else {
-      print("La respuesta de AIResponse es nula o no contiene mensajes.");
-    }
-  } catch (e) {
-    print("Error al detectar la intención: $e");
+
+class _ChatScreenState extends State<ChatScreen> {
+  late final GenerativeModel _model;
+  late final ChatSession _chat;
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _textController = TextEditingController();
+  final List<ChatMessage> _messages = [];
+  
+
+  @override
+  void initState(){
+    super.initState();
+    _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+    _chat = _model.startChat();
+  }
+
+  void _scrollDown(){
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 750),
+      curve: Curves.easeOutCirc,
+      )
+    );
+  }
+  
+Future<void> _sendChatMessage(String message) async {
+  setState(() {
+    _messages.add(ChatMessage(text: message, isUser: true));
+  });
+
+  try{
+    final response = await _chat.sendMessage(Content.text(message));
+    final text = response.text;
+    setState(() {
+      _messages.add(ChatMessage(text: text!, isUser: false));
+      _scrollDown();
+    });
+  } catch(e){
+    _messages.add(ChatMessage(text: 'Error: $e', isUser: false));
+  }finally{
+    _textController.clear();
   }
 }
-
-
-
-
-
-
-  final messageInsert = TextEditingController();
-  List<Map> messsages = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          "Chat bot",
-        ),
+        title: const Text('AI Chatbot'),
       ),
-      body: Container(
-        child: Column(
-          children: <Widget>[
-            Container(
-              padding: EdgeInsets.only(top: 15, bottom: 10),
-              child: Text("Today, ${DateFormat("Hm").format(DateTime.now())}", style: TextStyle(
-                fontSize: 20
-              ),),
-            ),
-            Flexible(
-                child: ListView.builder(
-                    reverse: true,
-                    itemCount: messsages.length,
-                    itemBuilder: (context, index) => chat(
-                        messsages[index]["message"].toString(),
-                        messsages[index]["data"]))),
-            SizedBox(
-              height: 20,
-            ),
-
-            Divider(
-              height: 5.0,
-              color: Colors.greenAccent,
-            ),
-            Container(
-
-
-              child: ListTile(
-
-                  leading: IconButton(
-                    icon: Icon(Icons.camera_alt, color: Colors.greenAccent, size: 35,), onPressed: () {  },
+      body: Column(
+        children: [
+          Expanded(child: ListView.builder(
+            controller: _scrollController,
+            itemCount: _messages.length,
+            itemBuilder: (context, index) {
+            return ChatBubble(message: _messages[index]);
+          },)),
+          Padding(padding: EdgeInsets.all(8),
+          child: Row(
+            children: [
+              Expanded(child: TextField(
+                onSubmitted: _sendChatMessage,
+                controller: _textController,
+                decoration: InputDecoration(
+                  hintText: 'Type a message...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-
-                  title: Container(
-                    height: 35,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.all(Radius.circular(
-                          15)),
-                      color: Color.fromRGBO(220, 220, 220, 1),
-                    ),
-                    padding: EdgeInsets.only(left: 15),
-                    child: TextFormField(
-                      controller: messageInsert,
-                      decoration: InputDecoration(
-                        hintText: "Enter a Message...",
-                        hintStyle: TextStyle(
-                            color: Colors.black26
-                        ),
-                        border: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        errorBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                      ),
-
-                      style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black
-                      ),
-                      onChanged: (value) {
-
-                      },
-                    ),
-                  ),
-
-                  trailing: IconButton(
-
-                      icon: Icon(
-
-                        Icons.send,
-                        size: 30.0,
-                        color: Colors.greenAccent,
-                      ),
-                      onPressed: () {
-
-                        if (messageInsert.text.isEmpty) {
-                          print("empty message");
-                        } else {
-                          setState(() {
-                            messsages.insert(0,
-                                {"data": 1, "message": messageInsert.text});
-                          });
-                          response(messageInsert.text);
-                          messageInsert.clear();
-                        }
-                        FocusScopeNode currentFocus = FocusScope.of(context);
-                        if (!currentFocus.hasPrimaryFocus) {
-                          currentFocus.unfocus();
-                        }
-                      }),
-
+                ),
+              )),
+              IconButton(
+                icon: Icon(Icons.send),
+                onPressed: () => _sendChatMessage(_textController.text),
               ),
-
-            ),
-
-            SizedBox(
-              height: 15.0,
-            )
-          ],
-        ),
+            ],
+          ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  //for better one i have use the bubble package check out the pubspec.yaml
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  ChatMessage({required this.text, required this.isUser});
+}
+class ChatBubble extends StatelessWidget {
+  final ChatMessage message;
 
-  Widget chat(String message, int data) {
+  const ChatBubble({Key? key, required this.message}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(left: 20, right: 20),
-
-      child: Row(
-          mainAxisAlignment: data == 1 ? MainAxisAlignment.end : MainAxisAlignment.start,
-          children: [
-
-            data == 0 ? Container(
-              height: 60,
-              width: 60,
-              child: CircleAvatar(
-                backgroundImage: AssetImage("assets/bot.png"),
-              ),
-            ) : Container(),
-
-        Padding(
-        padding: EdgeInsets.all(10.0),
-        child: Bubble(
-            radius: Radius.circular(15.0),
-            color: data == 0 ? Color.fromRGBO(23, 157, 139, 1) : Colors.orangeAccent,
-            elevation: 0.0,
-
-            child: Padding(
-              padding: EdgeInsets.all(2.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-
-                  SizedBox(
-                    width: 10.0,
-                  ),
-                  Flexible(
-                      child: Container(
-                        constraints: BoxConstraints( maxWidth: 200),
-                        child: Text(
-                          message,
-                          style: TextStyle(
-                              color: Colors.white, fontWeight: FontWeight.bold),
-                        ),
-                      ))
-                ],
-              ),
-            )),
-      ),
-
-            data == 1? Container(
-              height: 60,
-              width: 60,
-              child: CircleAvatar(
-                backgroundImage: AssetImage("assets/person.png"),
-              ),
-            ) : Container(),
-
-          ],
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width / 1.25,
         ),
+        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: message.isUser ? Color.fromARGB(255, 135, 252, 232) : Color.fromARGB(255, 133, 185, 241),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+            bottomLeft: message.isUser ? Radius.circular(12) : Radius.zero,
+            bottomRight: message.isUser ? Radius.zero : Radius.circular(12),
+          ),
+        ),
+        child: Text(
+        message.text,
+        style: TextStyle(
+          fontSize: 16,
+          ),  
+        ),
+      ),
     );
   }
 }
