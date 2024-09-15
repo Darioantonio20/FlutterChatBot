@@ -11,6 +11,8 @@ environment:
 dependencies:
   bubble: ^1.2.1
   dialogflow_flutter: ^1.0.0
+  dialog_flowtter: ^0.3.3
+  
   flutter:
     sdk: flutter
   flutter_lints: ^4.0.0
@@ -22,7 +24,7 @@ dev_dependencies:
 
 flutter:
   assets:
-    - assets/service.json
+    - assets/dialog_flow_auth.json
     - assets/bot.png
     - assets/person.png
 

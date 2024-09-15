@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:bubble/bubble.dart';
 import 'package:dialogflow_flutter/dialogflowFlutter.dart';
 import 'package:dialogflow_flutter/googleAuth.dart';
@@ -6,8 +5,39 @@ import 'package:dialogflow_flutter/language.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
+import 'dart:io';
 
+void detectIntent(String query) async {
+  try {
+    AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/dialog_flow_auth.json').build();
+    DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.spanish);
+    AIResponse response = await dialogflow.detectIntent(query);
 
+    if (response.getListMessage() != null) {
+      List? messages = response.getListMessage();
+      for (var message in messages!) {
+        if (message != null && message['text'] != null && message['text']['text'] != null) {
+          print(message['text']['text'][0]);
+        } else {
+          print("Mensaje no válido recibido.");
+        }
+      }
+    } else {
+      print("No se recibió una respuesta válida del bot.");
+    }
+  } catch (e) {
+    print("Error al detectar la intención: $e");
+  }
+}
+
+Future<void> readServiceJson() async {
+  final file = File('assets/dialog_flow_auth.json');
+  final contents = await file.readAsString();
+  final jsonData = jsonDecode(contents);
+
+  print(jsonData);
+}
 void main() {
   runApp(MyApp());
 }
@@ -36,33 +66,51 @@ _MyHomePageState createState() => _MyHomePageState();
 }
 class _MyHomePageState extends State<MyHomePage> {
 void response(query) async {
-  final String jsonString = await rootBundle.loadString('assets/service.json');
-  json.decode(jsonString);
-  // Crear la autenticación de Dialogflow con el contenido del JSON
-  AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/service.json').build();
-  DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.english);
-   try {
-      AIResponse aiResponse = await dialogflow.detectIntent(query);
-      if (aiResponse != null && aiResponse.getListMessage() != null) {
-        var message = aiResponse.getListMessage();
-        if (message != null && message.isNotEmpty) {
-          setState(() {
-            messsages.insert(0, {
-              "data": 0,
-              "message": message[0]["text"]["text"][0].toString()
+  try {
+    AuthGoogle authGoogle = await AuthGoogle(fileJson: 'assets/dialog_flow_auth.json').build();
+    DialogFlow dialogflow = DialogFlow(authGoogle: authGoogle, language: Language.english);
+    
+    // Detectar la intención a partir de la consulta
+    AIResponse aiResponse = await dialogflow.detectIntent(query);
+    
+    // Imprimir toda la respuesta para ver su estructura
+    print("Respuesta completa de AIResponse: ${aiResponse.getMessage()}");
+    
+    if (aiResponse.getListMessage() != null) {
+      var message = aiResponse.getListMessage();
+      
+      // Imprimir el mensaje para ver su estructura
+      print("Mensaje recibido: $message");
+      if (message != null && message.isNotEmpty) {
+        // Verificar que el primer mensaje tenga la clave 'text' y sea del tipo correcto
+        if (message[0] is Map && message[0].containsKey("text") && message[0]["text"] is Map) {
+          var textMap = message[0]["text"];
+          
+          if (textMap["text"] != null && textMap["text"] is List && textMap["text"].isNotEmpty) {
+            var text = textMap["text"];
+            setState(() {
+              messsages.insert(0, {"data": 0, "message": text[0].toString()});
             });
-          });
-          print(message[0]["text"]["text"][0].toString());
+            print("Texto del bot: ${text[0].toString()}");
+          } else {
+            print("El campo 'text' está vacío o no es una lista.");
+          }
         } else {
-          print("No se detectó ninguna intención o la respuesta no contiene mensajes.");
+          print("El mensaje no contiene un mapa 'text' válido.");
         }
       } else {
-        print("La respuesta de AIResponse es nula o no contiene mensajes.");
+        print("No se detectó ninguna intención o la respuesta no contiene mensajes.");
       }
-    } catch (e) {
-      print("Error al detectar la intención: $e");
+    } else {
+      print("La respuesta de AIResponse es nula o no contiene mensajes.");
     }
+  } catch (e) {
+    print("Error al detectar la intención: $e");
   }
+}
+
+
+
 
 
 
