@@ -1,16 +1,33 @@
-# flutterappchatbot
+# Flutter App Chatbot
 
-A new Flutter project.
+Este es un proyecto de Flutter para crear un chatbot. El proyecto está estructurado para soportar múltiples plataformas incluyendo Android, iOS, web, y escritorio.
 
-## Getting Started
+## Estructura del Proyecto
 
-This project is a starting point for a Flutter application.
+- `lib/`: Contiene el código fuente principal de la aplicación.
+- `assets/`: Contiene los recursos estáticos como imágenes y archivos de configuración.
+- `android/`: Archivos específicos para la plataforma Android.
+- `ios/`: Archivos específicos para la plataforma iOS.
+- `web/`: Archivos específicos para la plataforma web.
+- `linux/`, `macos/`, `windows/`: Archivos específicos para las plataformas de escritorio.
+- `test/`: Contiene las pruebas unitarias del proyecto.
 
-A few resources to get you started if this is your first Flutter project:
+## Requisitos Previos
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- [Flutter](https://flutter.dev/docs/get-started/install) SDK
+- [Dart](https://dart.dev/get-dart) SDK
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Instalación
+
+1. Clona el repositorio:
+    ```sh
+    git clone https://github.com/tu-usuario/flutterappchatbot.git
+    cd flutterappchatbot
+    ```
+
+2. Instala las dependencias:
+    ```sh
+    flutter pub get
+    ```
+
+## Ejecución
