@@ -46,14 +46,14 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isListening = false; // Para controlar el estado de la escucha
   String _speechText = ''; // Para almacenar el texto transcrito
 
-  @override
-  void initState() {
-    super.initState();
-    _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
-    _chat = _model.startChat();
-    _speech = stt.SpeechToText(); // Inicializa el SpeechToText
-    requestMicrophonePermission(); // Solicita el permiso del micrófono al iniciar
-  }
+@override
+void initState() {
+  super.initState();
+  _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+  _chat = _model.startChat();
+  _speech = stt.SpeechToText(); // Inicializa el SpeechToText
+  requestMicrophonePermission(); // Solicita el permiso del micrófono al iniciar
+}
 
   void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback(
@@ -87,31 +87,21 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _startListening() async {
-    if (await Permission.microphone.isGranted) {
-      bool available = await _speech.initialize(
-        onStatus: (val) => print('onStatus: $val'),
-        onError: (val) => print('onError: $val'),
-      );
-      if (available) {
-        setState(() => _isListening = true);
-        _speech.listen(
-          onResult: (val) {
-            setState(() {
-              _speechText = val.recognizedWords;
-              _textController.text = _speechText; // Muestra el texto transcrito en el input
-            });
-          },
-        );
-      }
-    } else {
-      requestMicrophonePermission(); // Pide permiso si no ha sido concedido
-    }
+  bool available = await _speech.initialize();
+  if (available) {
+    setState(() => _isListening = true);
+    _speech.listen(onResult: (result) {
+      setState(() {
+        _speechText = result.recognizedWords;
+      });
+    });
   }
+}
 
-  void _stopListening() {
-    setState(() => _isListening = false);
-    _speech.stop();
-  }
+void _stopListening() {
+  setState(() => _isListening = false);
+  _speech.stop();
+}
 
   @override
   Widget build(BuildContext context) {
