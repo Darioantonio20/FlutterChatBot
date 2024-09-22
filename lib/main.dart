@@ -1,20 +1,20 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt; // Import para grabar y transcribir
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+const String apiKey = "AIzaSyCIpuvmSma2EO4Rk0xaivrJhbjhXD-_DXE";
+
+void main() {
+  runApp(MyApp());
+}
 
 Future<void> requestMicrophonePermission() async {
   var status = await Permission.microphone.status;
   if (!status.isGranted) {
     await Permission.microphone.request();
   }
-}
-
-const String apiKey = "AIzaSyCIpuvmSma2EO4Rk0xaivrJhbjhXD-_DXE";
-
-void main() {
-  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ChatScreen(),
+      home: const ChatScreen(),
     );
   }
 }
@@ -42,27 +42,28 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _textController = TextEditingController();
   final List<ChatMessage> _messages = [];
-  late stt.SpeechToText _speech; // Instancia de speech_to_text
-  bool _isListening = false; // Para controlar el estado de la escucha
-  String _speechText = ''; // Para almacenar el texto transcrito
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  String _speechText = '';
 
-@override
-void initState() {
-  super.initState();
-  _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
-  _chat = _model.startChat();
-  _speech = stt.SpeechToText(); // Inicializa el SpeechToText
-  requestMicrophonePermission(); // Solicita el permiso del micrófono al iniciar
-}
+  @override
+  void initState() {
+    super.initState();
+    _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+    _chat = _model.startChat();
+    _speech = stt.SpeechToText();
+    requestMicrophonePermission();
+  }
 
   void _scrollDown() {
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 750),
-        curve: Curves.easeOutCirc,
-      ),
-    );
+    // Solo desplaza si el usuario está cerca del final de la lista
+    if (_scrollController.hasClients) {
+      final maxScroll = _scrollController.position.maxScrollExtent;
+      final currentScroll = _scrollController.position.pixels;
+      if ((maxScroll - currentScroll) <= 200) {
+        _scrollController.jumpTo(maxScroll);
+      }
+    }
   }
 
   Future<void> _sendChatMessage(String message) async {
@@ -71,12 +72,19 @@ void initState() {
     });
 
     try {
+      // Muestra un mensaje temporal para indicar que la respuesta está en camino
+      _messages.add(ChatMessage(text: 'Esperando respuesta...', isUser: false));
+
       final response = await _chat.sendMessage(Content.text(message));
-      final text = response.text;
+      final text = response.text ?? 'No se recibió respuesta';
+
       setState(() {
-        _messages.add(ChatMessage(text: text!, isUser: false));
-        _scrollDown();
+        // Remueve el mensaje temporal antes de agregar la respuesta real
+        _messages.removeLast();
+        _messages.add(ChatMessage(text: text, isUser: false));
       });
+
+      _scrollDown();
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(text: 'Error: $e', isUser: false));
@@ -87,21 +95,35 @@ void initState() {
   }
 
   void _startListening() async {
-  bool available = await _speech.initialize();
-  if (available) {
-    setState(() => _isListening = true);
-    _speech.listen(onResult: (result) {
-      setState(() {
-        _speechText = result.recognizedWords;
-      });
-    });
-  }
-}
+    bool available = await _speech.initialize(
+      onStatus: (val) {
+        if (val == 'done') {
+          _stopListening();
+        }
+      },
+      onError: (val) => print('Error del reconocimiento de voz: $val'),
+    );
 
-void _stopListening() {
-  setState(() => _isListening = false);
-  _speech.stop();
-}
+    if (available) {
+      setState(() => _isListening = true);
+      _speech.listen(
+        onResult: (val) {
+          setState(() {
+            _speechText = val.recognizedWords;
+            _textController.text = _speechText;
+          });
+        },
+        listenFor: const Duration(minutes: 1),
+        pauseFor: const Duration(seconds: 5),
+        partialResults: true,
+      );
+    }
+  }
+
+  void _stopListening() {
+    setState(() => _isListening = false);
+    _speech.stop();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,49 +146,49 @@ void _stopListening() {
             ),
           ),
           Padding(
-            padding: EdgeInsets.all(30),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
                 IconButton(
                   icon: Icon(
-                    _isListening ? Icons.mic_off : Icons.mic, // Cambia el icono según el estado
+                    _isListening ? Icons.mic_off : Icons.mic,
                     color: const Color.fromARGB(255, 174, 149, 60),
                     size: 32,
                   ),
-                  onPressed: _isListening ? _stopListening : _startListening, // Activa o detiene la grabación
+                  onPressed: _isListening ? _stopListening : _startListening,
                 ),
                 Expanded(
                   child: TextField(
                     onSubmitted: _sendChatMessage,
                     controller: _textController,
                     decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: TextStyle(color: Colors.white),
+                      hintText: 'Escribe un mensaje...',
+                      hintStyle: const TextStyle(color: Colors.white),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color.fromARGB(255, 76, 144, 133),
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color.fromARGB(255, 107, 201, 185),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
+                        borderSide: const BorderSide(
                           color: Color.fromARGB(255, 107, 201, 185),
                         ),
                       ),
                     ),
-                    style: TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.send),
-                  color: Color.fromARGB(255, 107, 201, 185),
+                  icon: const Icon(Icons.send),
+                  color: const Color.fromARGB(255, 107, 201, 185),
                   iconSize: 35,
                   onPressed: () => _sendChatMessage(_textController.text),
                 ),
@@ -193,43 +215,43 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Row(
         mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!message.isUser)
-            CircleAvatar(
-              backgroundImage: AssetImage('assets/bot.png'), // Ruta de la imagen del bot
+            const CircleAvatar(
+              backgroundImage: AssetImage('assets/bot.png'),
               radius: 20,
             ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Container(
             constraints: BoxConstraints(
               maxWidth: MediaQuery.of(context).size.width / 1.25,
             ),
-            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: message.isUser ? Color.fromARGB(255, 47, 89, 82) : Color.fromARGB(255, 46, 65, 84),
+              color: message.isUser ? const Color.fromARGB(255, 47, 89, 82) : const Color.fromARGB(255, 46, 65, 84),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-                bottomLeft: message.isUser ? Radius.circular(12) : Radius.zero,
-                bottomRight: message.isUser ? Radius.zero : Radius.circular(12),
+                topLeft: const Radius.circular(12),
+                topRight: const Radius.circular(12),
+                bottomLeft: message.isUser ? const Radius.circular(12) : Radius.zero,
+                bottomRight: message.isUser ? Radius.zero : const Radius.circular(12),
               ),
             ),
             child: Text(
               message.text,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
-                color: Color.fromARGB(255, 255, 255, 255),
+                color: Colors.white,
               ),
             ),
           ),
-          if (message.isUser) SizedBox(width: 8),
+          if (message.isUser) const SizedBox(width: 8),
           if (message.isUser)
-            CircleAvatar(
-              backgroundImage: AssetImage('assets/person.png'), // Ruta de la imagen del usuario
+            const CircleAvatar(
+              backgroundImage: AssetImage('assets/person.png'),
               radius: 20,
             ),
         ],

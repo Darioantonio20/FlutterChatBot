@@ -32,8 +32,6 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Necesitamos acceso a la cámara para reconocer tu rostro.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Necesitamos acceso al micrófono para reconocer tu voz.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Necesitamos acceso a la galería para reconocer tu rostro.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
