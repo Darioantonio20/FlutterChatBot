@@ -16,7 +16,6 @@ Future<void> requestMicrophonePermission() async {
     await Permission.microphone.request();
   }
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
@@ -28,7 +27,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
 
@@ -56,8 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _scrollDown() {
-    // Solo desplaza si el usuario está cerca del final de la lista
-    if (_scrollController.hasClients) {
+    if (_scrollController.hasClients) {  // Solo desplaza si el usuario está cerca del final de la lista
       final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
       if ((maxScroll - currentScroll) <= 200) {
@@ -72,15 +69,13 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      // Muestra un mensaje temporal para indicar que la respuesta está en camino
-      _messages.add(ChatMessage(text: 'Esperando respuesta...', isUser: false));
+      _messages.add(ChatMessage(text: 'Analizando...', isUser: false));  // Muestra un mensaje temporal para indicar que la respuesta está en camino
 
       final response = await _chat.sendMessage(Content.text(message));
       final text = response.text ?? 'No se recibió respuesta';
 
       setState(() {
-        // Remueve el mensaje temporal antes de agregar la respuesta real
-        _messages.removeLast();
+        _messages.removeLast();// Remueve el mensaje temporal antes de agregar la respuesta real
         _messages.add(ChatMessage(text: text, isUser: false));
       });
 
