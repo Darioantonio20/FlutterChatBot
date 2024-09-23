@@ -1,8 +1,11 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+//hacer que hable, de en ingles converse contigo en ingles
+//text to speech
 
 const String apiKey = "AIzaSyCIpuvmSma2EO4Rk0xaivrJhbjhXD-_DXE";
 
@@ -41,6 +44,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final List<ChatMessage> _messages = [];
   late stt.SpeechToText _speech;
+  late FlutterTts _flutterTts;
   bool _isListening = false;
   String _speechText = '';
 
@@ -50,6 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
     _model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
     _chat = _model.startChat();
     _speech = stt.SpeechToText();
+    _flutterTts = FlutterTts();
     requestMicrophonePermission();
   }
 
@@ -63,23 +68,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+    Future<void> _speak(String text) async {
+    await _flutterTts.setLanguage("en-EN");  // Configura el idioma
+    await _flutterTts.setPitch(1.0);  // Configura el tono
+    await _flutterTts.speak(text);  // Habla el texto
+  }
+
   Future<void> _sendChatMessage(String message) async {
     setState(() {
       _messages.add(ChatMessage(text: message, isUser: true));
     });
-
     try {
       _messages.add(ChatMessage(text: 'Analizando...', isUser: false));  // Muestra un mensaje temporal para indicar que la respuesta está en camino
-
       final response = await _chat.sendMessage(Content.text(message));
       final text = response.text ?? 'No se recibió respuesta';
-
       setState(() {
         _messages.removeLast();// Remueve el mensaje temporal antes de agregar la respuesta real
         _messages.add(ChatMessage(text: text, isUser: false));
       });
-
       _scrollDown();
+      await _speak(text);  // Lee la respuesta en voz alta
     } catch (e) {
       setState(() {
         _messages.add(ChatMessage(text: 'Error: $e', isUser: false));
